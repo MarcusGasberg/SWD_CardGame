@@ -20,6 +20,10 @@ namespace SWD_CardGame.Core
         /// </summary>
         bool GameStarted { get; }
         /// <summary>
+        /// The strategy to choose the winner from
+        /// </summary>
+        IWinnerBehaviour WinnerBehaviour { get; set; }
+        /// <summary>
         /// Start a new game if the game isn't started and there is atleast to players
         /// </summary>
         void StartNewGame();
@@ -38,6 +42,49 @@ namespace SWD_CardGame.Core
         void AnnounceWinner();
     }
 
+    public interface IWinnerBehaviour
+    {
+        /// <summary>
+        /// Strategy for announcing a winner in a game
+        /// </summary>
+        /// <param name="players">The players playing the game</param>
+        /// <param name="isGameStarted">Flag to see if the game has been started</param>
+        void AnnounceWinner(IReadOnlyList<IPlayer> players,ref bool isGameStarted);
+    }
+
+    /// <summary>
+    /// Normal Winner Behavior where the highest score wins
+    /// </summary>
+    public class NormalWinnerBehavior : IWinnerBehaviour
+    {
+        public void AnnounceWinner(IReadOnlyList<IPlayer> players,ref bool isGameStarted)
+        {
+            if (!isGameStarted)
+                return;
+            var winner = players.MaxObject(player => player.HandValue);
+            Console.Write($"The winner is: ");
+            winner.ShowHand();
+            isGameStarted = false;
+        }
+        
+    }
+
+    /// <summary>
+    /// Low Cost Winner Behavior where the lowest score of the game wins
+    /// </summary>
+    public class LowCostWinnerBehavior : IWinnerBehaviour
+    {
+        public void AnnounceWinner(IReadOnlyList<IPlayer> players, ref bool isGameStarted)
+        {
+            if (!isGameStarted)
+                return;
+            var winner = players.MinObject(player => player.HandValue);
+            Console.Write($"The winner with a hand value of {winner.HandValue} is: ");
+            winner.ShowHand();
+            isGameStarted = false;
+        }
+    }
+
     /// <summary>
     /// A Normal game where the highest score wins
     /// </summary>
@@ -45,16 +92,12 @@ namespace SWD_CardGame.Core
     {
         public NormalGame(int cardsPrPlayer) : base(cardsPrPlayer)
         {
+            WinnerBehaviour = new NormalWinnerBehavior();
         }
 
         public override void AnnounceWinner()
         {
-            if (!GameStarted)
-                return;
-            var winner = _players.MaxObject(player => player.HandValue);
-            Console.Write($"The winner is: ");
-            winner.ShowHand();
-            GameStarted = false;
+            WinnerBehaviour.AnnounceWinner(_players, ref _gameStarted);
         }
     }
 
@@ -65,16 +108,12 @@ namespace SWD_CardGame.Core
     {
         public LowScoreGame(int cardsPrPlayer) : base(cardsPrPlayer)
         {
+            WinnerBehaviour = new LowCostWinnerBehavior();
         }
 
         public override void AnnounceWinner()
         {
-            if (!GameStarted)
-                return;
-            var winner = _players.MinObject(player => player.HandValue);
-            Console.Write($"The winner with a hand value of {winner.HandValue} is: ");
-            winner.ShowHand();
-            GameStarted = false;
+            WinnerBehaviour.AnnounceWinner(_players, ref _gameStarted);
         }
     }
 
@@ -83,9 +122,10 @@ namespace SWD_CardGame.Core
     /// </summary>
     public abstract class Game : IGame
     {
-        protected readonly List<IPlayer> _players = new List<IPlayer>();
+        protected List<IPlayer> _players = new List<IPlayer>();
         protected Deck _cardDeck;
         protected int _numCardsPrPlayer;
+        protected bool _gameStarted;
 
         /// <summary>
         /// Default constructor
@@ -112,7 +152,12 @@ namespace SWD_CardGame.Core
         /// <summary>
         /// Flag to indicate if a game is started or not
         /// </summary>
-        public bool GameStarted { get; protected set; } = false;
+        public bool GameStarted { get=>_gameStarted; protected set=> _gameStarted = value; }
+
+        /// <summary>
+        /// The strategy to choose the winner from
+        /// </summary>
+        public IWinnerBehaviour WinnerBehaviour { get; set; }
 
         /// <summary>
         /// Start a new game if the game isn't started and there is atleast to players
